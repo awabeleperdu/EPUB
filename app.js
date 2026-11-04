@@ -81,10 +81,15 @@ const FONTS = {
   sans: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 };
 let S = { theme: "dark", size: 100, font: "serif" };
-try { Object.assign(S, JSON.parse(localStorage.getItem("settings") || "{}")); }
+try { Object.assign(S, JSON.parse(localStorage.getItem("epub.settings") || "{}")); }
 catch (e) { showError("Lecture des réglages", e); }
+// Valeurs invalides (ex. réglages d'une autre appli du même site) : retour aux défauts
+if (!THEMES[S.theme]) S.theme = "dark";
+if (!FONTS[S.font]) S.font = "serif";
+if (typeof S.size !== "number" || isNaN(S.size)) S.size = 100;
+S.size = Math.min(220, Math.max(70, S.size));
 function saveSettings() {
-  try { localStorage.setItem("settings", JSON.stringify(S)); }
+  try { localStorage.setItem("epub.settings", JSON.stringify(S)); }
   catch (e) { showError("Sauvegarde des réglages", e); }
 }
 function applyUiTheme() {
@@ -276,7 +281,7 @@ async function openBook(id) {
     $("slider-val").textContent = Math.round((rec.percent || 0) * 100) + " %";
     $("library").hidden = true; $("reader").hidden = false; setUi(false); closeSheets();
     try { history.pushState({ r: 1 }, ""); } catch (_) {}
-    try { localStorage.setItem("lastOpen", id); } catch (_) {}
+    try { localStorage.setItem("epub.lastOpen", id); } catch (_) {}
 
     const myBook = ePub(buf);
     book = myBook;
@@ -345,7 +350,7 @@ async function openBook(id) {
     showError("Ouverture impossible", e);
     await teardown();
     $("reader").hidden = true; $("library").hidden = false;
-    try { localStorage.removeItem("lastOpen"); } catch (_) {}
+    try { localStorage.removeItem("epub.lastOpen"); } catch (_) {}
   }
 }
 
@@ -362,7 +367,7 @@ async function closeReader() {
   await teardown();
   closeSheets();
   $("reader").hidden = true; $("library").hidden = false;
-  try { localStorage.removeItem("lastOpen"); } catch (_) {}
+  try { localStorage.removeItem("epub.lastOpen"); } catch (_) {}
   try { await renderLibrary(); } catch (e) { showError("Affichage bibliothèque", e); }
 }
 window.addEventListener("popstate", () => { closeReader(); });
@@ -402,7 +407,7 @@ $("slider").addEventListener("change", (e) => {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     await renderLibrary();
     if (typeof ePub === "undefined") showError("Chargement", new Error("epub.js n'a pas pu être téléchargé. Connecte-toi une première fois."));
-    const last = localStorage.getItem("lastOpen");
+    const last = localStorage.getItem("epub.lastOpen");
     if (last && typeof ePub !== "undefined") await openBook(last); // reprise automatique
   } catch (e) { showError("Démarrage", e); }
 })();
