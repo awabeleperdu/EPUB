@@ -1,11 +1,12 @@
 "use strict";
+const VERSION = "3";
 
 /* ============ Erreurs visibles à l'écran (jamais silencieuses) ============ */
 const errBox = document.getElementById("err");
 function showError(ctx, e) {
   const msg = String((e && (e.stack || e.message)) || e).slice(0, 900);
   errBox.textContent = "";
-  const t = document.createElement("strong"); t.textContent = ctx;
+  const t = document.createElement("strong"); t.textContent = ctx + " (v" + VERSION + ")";
   const p = document.createElement("pre"); p.textContent = msg;
   const s = document.createElement("small"); s.textContent = "Touche pour fermer";
   errBox.append(t, p, s);
@@ -150,7 +151,7 @@ async function importFile(f) {
   if (typeof ePub === "undefined") throw new Error("epub.js non chargé (connexion nécessaire au premier lancement)");
   const buf = await f.arrayBuffer();
   const id = f.name + "|" + f.size;
-  if (await getBook(id)) { toast("Déjà dans la bibliothèque : " + f.name); return; }
+  if (await getBook(id)) { toast("Déjà dans la bibliothèque : " + f.name); return id; }
   const book = ePub(buf.slice(0));
   let meta, cover = null;
   try {
@@ -166,16 +167,20 @@ async function importFile(f) {
     author: (meta && meta.creator) || "", cover, addedAt: Date.now(),
     lastRead: 0, cfi: null, percent: 0, locations: null,
   });
+  return id;
 }
 $("file").addEventListener("change", async (ev) => {
   const files = [...ev.target.files]; ev.target.value = "";
+  let lastId = null;
   for (const f of files) {
     busy("Import de " + f.name + "…");
-    try { await importFile(f); }
+    try { lastId = await importFile(f); }
     catch (e) { showError("Import impossible : " + f.name, e); }
   }
   busy(false);
   try { await renderLibrary(); } catch (e) { showError("Affichage bibliothèque", e); }
+  // Un seul livre ajouté : on l'ouvre directement
+  if (files.length === 1 && lastId) await openBook(lastId);
 });
 
 /* ============ Lecteur ============ */
@@ -404,6 +409,7 @@ $("slider").addEventListener("change", (e) => {
 /* ============ Démarrage ============ */
 (async function start() {
   try {
+    $("ver").textContent = "v" + VERSION;
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     await renderLibrary();
     if (typeof ePub === "undefined") showError("Chargement", new Error("epub.js n'a pas pu être téléchargé. Connecte-toi une première fois."));

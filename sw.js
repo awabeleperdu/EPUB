@@ -1,4 +1,4 @@
-const V = "lecture-v1";
+const V = "lecture-v3";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.json", "icon-192.png", "icon-512.png"];
 const LIBS = [
   "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
@@ -29,7 +29,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   e.respondWith(
-    fetch(req).then((r) => {
+    fetch(req, { cache: "no-cache" }).then((r) => {
       if (r && (r.ok || r.type === "opaque")) {
         const cp = r.clone();
         caches.open(V).then((c) => c.put(req, cp));
