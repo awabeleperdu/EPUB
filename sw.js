@@ -1,4 +1,4 @@
-const V = "lecture-v3";
+const V = "lecture-v4";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.json", "icon-192.png", "icon-512.png"];
 const LIBS = [
   "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f0f12">
+<meta name="theme-color" content="#08080C">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,79 +12,87 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Lecture</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
-<body data-theme="dark">
+<body data-ui="dark">
 
 <!-- Les erreurs s'affichent ici (pas besoin de console) -->
 <div id="err" hidden></div>
 
-<main id="library">
-  <header class="lib-head">
-    <h1>Bibliothèque</h1>
-    <label class="btn-add" for="file">＋ Ajouter</label>
-  </header>
-  <input id="file" type="file" accept=".epub,application/epub+zip" multiple hidden>
-  <div id="grid"></div>
-  <div id="empty" class="empty" hidden>
-    <div class="empty-ico">📖</div>
-    <p>Aucun livre pour l'instant</p>
-    <small>Choisis un fichier .epub sur ton téléphone. Il est copié dans l'appli : plus besoin de le rechercher, tu reprends où tu t'es arrêté.</small>
-    <label class="btn-big" for="file">Choisir un epub</label>
-  </div>
-  <p id="ver" style="text-align:center;font-size:11px;opacity:.4;margin-top:32px"></p>
-</main>
+<div id="app">
+  <main id="views">
+    <section id="v-home" class="view"></section>
+    <section id="v-toread" class="view" hidden></section>
+    <section id="v-stats" class="view" hidden></section>
+    <section id="v-settings" class="view" hidden></section>
+  </main>
+  <nav id="nav" aria-label="Navigation principale">
+    <button data-act="tab" data-v="home" class="on">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg>Accueil</button>
+    <button data-act="tab" data-v="toread">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z"/></svg>À lire</button>
+    <button data-act="tab" data-v="stats">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>Stats</button>
+    <button data-act="tab" data-v="settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Réglages</button>
+  </nav>
+</div>
 
-<section id="reader" hidden>
+<!-- Lecteur epub -->
+<section id="reader" class="rt-dark" hidden>
   <div id="viewer"></div>
   <div id="pct"></div>
-
   <div class="bar top" id="topbar">
-    <button id="back" aria-label="Retour">‹</button>
+    <button data-act="closeviewer" aria-label="Retour à la bibliothèque"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div id="title"></div>
-    <button id="btn-toc" aria-label="Chapitres">☰</button>
-    <button id="btn-set" aria-label="Réglages">Aa</button>
+    <button data-act="toc" aria-label="Chapitres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button>
+    <button data-act="readset" aria-label="Réglages de lecture" class="aa">Aa</button>
   </div>
   <div class="bar bottom" id="botbar">
-    <input id="slider" type="range" min="0" max="1000" value="0" disabled>
-    <span id="slider-val">0 %</span>
+    <div class="brow"><span id="chap"></span><b id="slider-val">0 %</b></div>
+    <input id="slider" type="range" min="0" max="1000" value="0" disabled aria-label="Position dans le livre">
+    <div id="remain"></div>
   </div>
-
-  <div id="backdrop" hidden></div>
-  <aside id="toc" class="sheet" hidden>
-    <h2>Chapitres</h2>
-    <div id="toc-list"></div>
-  </aside>
-  <aside id="settings" class="sheet" hidden>
-    <h2>Lecture</h2>
-    <div class="row"><span>Thème</span>
-      <div class="seg" id="seg-theme">
-        <button data-v="dark">Sombre</button>
-        <button data-v="sepia">Sépia</button>
-        <button data-v="light">Clair</button>
-      </div>
-    </div>
-    <div class="row"><span>Taille</span>
-      <div class="seg">
-        <button id="size-down">A−</button>
-        <button id="size-val" disabled>100 %</button>
-        <button id="size-up">A+</button>
-      </div>
-    </div>
-    <div class="row"><span>Police</span>
-      <div class="seg" id="seg-font">
-        <button data-v="serif">Serif</button>
-        <button data-v="sans">Sans</button>
-      </div>
-    </div>
-  </aside>
 </section>
 
-<div id="busy" hidden><div class="spin"></div><p id="busy-t"></p></div>
+<!-- Lecteur de scans -->
+<section id="scan" class="rt-dark" hidden>
+  <div id="strip"></div>
+  <img id="single" alt="" hidden>
+  <div class="bar top" id="sc-top">
+    <button data-act="closeviewer" aria-label="Retour"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="sc-mid"><div id="sc-title"></div><div id="sc-page"></div></div>
+    <span class="sp"></span>
+  </div>
+  <div id="sc-rail"><i id="sc-rail-i"></i></div>
+  <div id="sc-pill">
+    <button data-act="smode" data-v="vertical" id="m-vertical"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>Vertical</button>
+    <button data-act="smode" data-v="pages" id="m-pages"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3.5" width="12" height="17" rx="2"/></svg>Pages</button>
+    <button data-act="manga" id="m-manga" aria-label="Sens manga, de droite à gauche"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5M10 6l-6 6 6 6"/></svg>Manga</button>
+  </div>
+</section>
+
+<div id="backdrop" hidden data-act="close"></div>
+<aside id="sheet" class="sheet" hidden></aside>
+
+<div id="busy" hidden>
+  <div class="busy-card">
+    <div class="ring"><i></i><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/></svg></div>
+    <div class="busy-t" id="busy-t">Import en cours</div>
+    <div class="busy-n" id="busy-n"></div>
+    <div class="pbar"><i id="busy-bar"></i></div>
+    <div class="busy-f"><span id="busy-c"></span><b id="busy-p"></b></div>
+  </div>
+</div>
 <div id="toast" hidden></div>
+
+<input id="file" type="file" multiple hidden>
+<input id="file-json" type="file" accept=".json,application/json" hidden>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
