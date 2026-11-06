@@ -1,4 +1,4 @@
-const V = "lecture-v4";
+const V = "lecture-v5";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.json", "icon-192.png", "icon-512.png"];
 const LIBS = [
   "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
@@ -8,7 +8,8 @@ const LIBS = [
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(V);
-    await c.addAll(SHELL);
+    // Un fichier manquant ne doit jamais empêcher l'installation du service worker
+    await Promise.all(SHELL.map(async (u) => { try { await c.add(u); } catch (_) {} }));
     // Librairies externes : on les garde pour le hors-ligne (best effort)
     await Promise.all(LIBS.map(async (u) => {
       try { await c.put(u, await fetch(new Request(u, { mode: "no-cors" }))); } catch (_) {}

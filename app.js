@@ -1,5 +1,5 @@
 "use strict";
-const VERSION = "4";
+const VERSION = "5";
 
 /* ============ Erreurs visibles à l'écran (jamais silencieuses) ============ */
 const errBox = document.getElementById("err");
@@ -297,6 +297,7 @@ function renderSettings() {
   const tg = (k, label) => '<div class="rw"><span>' + label + '</span><button class="tgl' + (S[k] ? " on" : "") + '" role="switch" aria-checked="' + !!S[k] + '" aria-label="' + esc(label) + '" data-act="tgl" data-k="' + k + '"></button></div>';
   $("v-settings").innerHTML =
     '<div class="hdr"><h1 class="h1">Réglages</h1></div>' +
+    '<div class="lbl pad">Installation</div><div class="grp" id="inst"><span class="sub">Vérification…</span></div>' +
     '<div class="lbl pad">Apparence</div><div class="grp"><div class="seg">' +
     Object.keys(THEMES).map((k) => '<button class="' + (S.ui === k ? "on" : "") + '" data-act="ui" data-v="' + k + '">' + THEMES[k].name + "</button>").join("") + "</div>" +
     '<div class="rw" style="padding:14px 0 0;min-height:0"><span>Couleur d\'accent</span><div class="sw">' +
@@ -309,7 +310,41 @@ function renderSettings() {
     '<div class="lbl pad">Sauvegarde</div><div class="two"><button class="btn-ghost" data-act="export">' + I.down + ' Exporter</button><button class="btn-ghost" data-act="importjson">' + I.up + ' Importer</button></div>' +
     '<div class="none" style="padding:12px 32px 0;font-size:12px">La sauvegarde contient ta liste, ta progression, tes stats et tes réglages. Les fichiers des livres ne sont pas inclus : garde-les de ton côté.</div>' +
     '<div class="ver">Lecture v' + VERSION + "</div>";
-  fillStorage();
+  fillStorage(); fillInstall();
+}
+
+/* ============ Installation de l'appli (PWA) ============ */
+let deferredInstall = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstall = e; fillInstall(); });
+window.addEventListener("appinstalled", () => { deferredInstall = null; toast("Appli installée ✓"); fillInstall(); });
+const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+async function fillInstall() {
+  const el = $("inst"); if (!el) return;
+  const row = (ok, t, d) => '<div class="chk"><b class="' + (ok === true ? "y" : ok === false ? "n" : "u") + '">' + (ok === true ? "✓" : ok === false ? "✕" : "•") + "</b><span>" + esc(t) + (d ? "<small>" + esc(d) + "</small>" : "") + "</span></div>";
+  if (isStandalone()) { el.innerHTML = row(true, "Tu utilises l'appli installée"); return; }
+  const rows = [];
+  rows.push(row(window.isSecureContext, "Connexion sécurisée (https)", window.isSecureContext ? "" : "Adresse : " + location.origin));
+  try {
+    const link = document.querySelector('link[rel="manifest"]');
+    const r = await fetch(link.href, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status + " sur " + link.getAttribute("href") + " : le fichier manifest.json est absent ou mal nommé");
+    const m = await r.json(), srcs = [...new Set((m.icons || []).map((ic) => ic.src))], bad = [];
+    for (const s of srcs) { const ri = await fetch(new URL(s, link.href), { cache: "no-store" }); if (!ri.ok) bad.push(s + " (HTTP " + ri.status + ")"); }
+    rows.push(row(!bad.length && srcs.length >= 2, "Manifest et icônes", bad.length ? "Introuvable : " + bad.join(", ") + " → ajoute ces fichiers à la racine du repo, avec exactement ce nom" : srcs.length + " icônes trouvées"));
+  } catch (e) { rows.push(row(false, "Manifest", e.message || String(e))); }
+  try {
+    if (!("serviceWorker" in navigator)) throw new Error("Ce navigateur ne gère pas le mode hors-ligne");
+    const reg = await navigator.serviceWorker.getRegistration();
+    const busyInstall = !!(reg && !reg.active && (reg.installing || reg.waiting));
+    rows.push(row(reg && reg.active ? true : busyInstall ? null : false, "Mode hors-ligne (service worker)", reg ? (reg.active ? "actif" : busyInstall ? "en cours d'installation : rouvre cette page dans un instant" : "pas actif") : "non enregistré : vérifie que sw.js est à la racine du repo, avec ce nom exact"));
+  } catch (e) { rows.push(row(false, "Mode hors-ligne", e.message || String(e))); }
+  rows.push(row(deferredInstall ? true : null, deferredInstall ? "Chrome propose l'installation" : "Chrome ne propose pas (encore) l'installation"));
+  const ua = navigator.userAgent;
+  let hint = "";
+  if (/iPhone|iPad/.test(ua)) hint = "Sur iPhone : Partager → « Sur l'écran d'accueil ». iOS n'a pas d'installation d'appli web plus poussée.";
+  else if (/SamsungBrowser|Firefox|FxiOS|EdgA|OPR\//.test(ua)) hint = "Ce navigateur n'est pas Chrome : ouvre l'adresse dans Chrome pour pouvoir installer l'appli.";
+  else if (!deferredInstall) hint = "Si tu as déjà ajouté un raccourci avant, supprime-le puis ferme et rouvre cette page. Ensuite menu ⋮ de Chrome → « Installer l'application ». S'il y a un ✕ ci-dessus, c'est la cause.";
+  el.innerHTML = rows.join("") + (deferredInstall ? '<button class="btn-primary" data-act="install" style="margin-top:12px">' + I.down.replace('width="18" height="18"', 'width="20" height="20"') + " Installer l'application</button>" : "") + (hint ? '<div class="sub" style="margin-top:10px;line-height:18px;font-size:12px">' + esc(hint) + "</div>" : "");
 }
 async function fillStorage() {
   const el = $("sto"); if (!el) return;
@@ -869,6 +904,13 @@ const ACT = {
   ui: (el) => { S.ui = el.dataset.v; saveSettings(); applyUi(); renderSettings(); },
   accent: (el) => { S.accent = el.dataset.v; saveSettings(); applyUi(); renderSettings(); },
   tgl: (el) => { const k = el.dataset.k; S[k] = !S[k]; saveSettings(); renderSettings(); },
+  install: async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    const c = await deferredInstall.userChoice;
+    toast(c.outcome === "accepted" ? "Installation lancée" : "Installation annulée");
+    deferredInstall = null; fillInstall();
+  },
   export: () => exportBackup().catch((e) => showError("Export de la sauvegarde", e)),
   importjson: () => $("file-json").click(),
   toc: () => sheetToc(),

@@ -178,6 +178,9 @@ body.hidenav #nav{display:none}
 .legend{margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;line-height:16px;color:var(--mute)}
 .two{display:flex;gap:10px;margin:0 20px}
 .two .btn-ghost{height:52px}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:14px;line-height:19px;font-weight:600}
+.chk b{flex:none;width:20px;text-align:center}.chk b.y{color:var(--good)}.chk b.n{color:#ff7a85}.chk b.u{color:var(--mute)}
+.chk small{display:block;color:var(--mute);font-size:12px;line-height:16px;font-weight:400;word-break:break-word}
 .ver{margin-top:28px;text-align:center;font-size:11px;color:var(--dim)}
 .cx{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin-right:-8px;border-radius:12px;color:var(--mute)}
 
