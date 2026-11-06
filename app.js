@@ -1,5 +1,5 @@
 "use strict";
-const VERSION = "5";
+const VERSION = "6";
 
 /* ============ Erreurs visibles à l'écran (jamais silencieuses) ============ */
 const errBox = document.getElementById("err");
@@ -318,6 +318,21 @@ let deferredInstall = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstall = e; fillInstall(); });
 window.addEventListener("appinstalled", () => { deferredInstall = null; toast("Appli installée ✓"); fillInstall(); });
 const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+// Liste les fichiers réellement présents à la racine du repo GitHub (API publique) pour comprendre un 404
+async function repoListing(owner, repo) {
+  owner = owner || location.hostname.split(".")[0]; repo = repo || location.pathname.split("/")[1];
+  if (!repo) throw new Error("adresse sans nom de repo");
+  const r = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/contents/", { cache: "no-store" });
+  if (!r.ok) throw new Error("GitHub HTTP " + r.status);
+  return (await r.json()).map((f) => f.name + (f.type === "dir" ? "/" : ""));
+}
+function listingHint(names) {
+  const need = ["index.html", "style.css", "app.js", "sw.js", "manifest.json", "icon-192.png", "icon-512.png"];
+  const missing = need.filter((n) => !names.includes(n));
+  const imgs = names.filter((n) => /\.(png|jpe?g|webp|ico)$/i.test(n)), dirs = names.filter((n) => n.endsWith("/"));
+  return (missing.length ? "Absents à la racine du repo : " + missing.join(", ") + ". " : "Tous les fichiers sont à la racine. ") +
+    (imgs.length ? "Images présentes : " + imgs.join(", ") + ". " : "Aucune image à la racine. ") + (dirs.length ? "Dossiers : " + dirs.join(", ") + "." : "");
+}
 async function fillInstall() {
   const el = $("inst"); if (!el) return;
   const row = (ok, t, d) => '<div class="chk"><b class="' + (ok === true ? "y" : ok === false ? "n" : "u") + '">' + (ok === true ? "✓" : ok === false ? "✕" : "•") + "</b><span>" + esc(t) + (d ? "<small>" + esc(d) + "</small>" : "") + "</span></div>";
@@ -329,8 +344,10 @@ async function fillInstall() {
     const r = await fetch(link.href, { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status + " sur " + link.getAttribute("href") + " : le fichier manifest.json est absent ou mal nommé");
     const m = await r.json(), srcs = [...new Set((m.icons || []).map((ic) => ic.src))], bad = [];
-    for (const s of srcs) { const ri = await fetch(new URL(s, link.href), { cache: "no-store" }); if (!ri.ok) bad.push(s + " (HTTP " + ri.status + ")"); }
-    rows.push(row(!bad.length && srcs.length >= 2, "Manifest et icônes", bad.length ? "Introuvable : " + bad.join(", ") + " → ajoute ces fichiers à la racine du repo, avec exactement ce nom" : srcs.length + " icônes trouvées"));
+    for (const s of srcs) { const u = new URL(s, link.href); const ri = await fetch(u, { cache: "no-store" }); if (!ri.ok) bad.push(u.href + " (HTTP " + ri.status + ")"); }
+    let more = "";
+    if (bad.length) { try { more = listingHint(await repoListing()); } catch (e) { more = "(liste du repo indisponible : " + (e.message || e) + ")"; } }
+    rows.push(row(!bad.length && srcs.length >= 2, "Manifest et icônes", bad.length ? "Introuvable à : " + bad.join(" ; ") + (more ? " — " + more : "") : srcs.length + " icônes trouvées"));
   } catch (e) { rows.push(row(false, "Manifest", e.message || String(e))); }
   try {
     if (!("serviceWorker" in navigator)) throw new Error("Ce navigateur ne gère pas le mode hors-ligne");
